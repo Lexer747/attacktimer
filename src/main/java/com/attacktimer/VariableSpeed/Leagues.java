@@ -36,6 +36,8 @@ import net.runelite.api.Varbits;
 import net.runelite.api.WorldType;
 import net.runelite.api.events.GameTick;
 
+import java.util.Map;
+
 public class Leagues implements IVariableSpeed
 {
     public int apply(final Client client, final AnimationData curAnimation, final AttackProcedure atkProcedure, final int baseSpeed, final int curSpeed)
@@ -43,46 +45,54 @@ public class Leagues implements IVariableSpeed
         int leagueRelicVarbit = 0;
         if (client.getWorldType().contains(WorldType.SEASONAL))
         {
-            leagueRelicVarbit = client.getVarbitValue(Varbits.LEAGUE_RELIC_4);
+            leagueRelicVarbit = client.getVarbitValue(Varbits.LEAGUE_RELIC_1);
+        }
+        
+        if (leagueRelicVarbit == 0)
+        {
+            return baseSpeed;
         }
 
         AttackStyle attackStyle = Utils.getAttackStyle(client);
-
-        switch (leagueRelicVarbit)
-        {
-            case 0:
-                // No league relic active - player does not have t4 relic or is not in leagues.
-                return baseSpeed;
-            case 1:
-                // Archer's Embrace (ranged).
-                if (attackStyle == AttackStyle.RANGING || attackStyle == AttackStyle.LONGRANGE)
-                {
-                    return applyRangedAndMeleeRelicSpeed(baseSpeed);
-                }
-                break;
-            case 2:
-                // Brawler's Resolve (melee)
-                if (attackStyle == AttackStyle.ACCURATE ||
-                        attackStyle == AttackStyle.AGGRESSIVE ||
-                        attackStyle == AttackStyle.CONTROLLED ||
-                        attackStyle == AttackStyle.DEFENSIVE)
-                {
-                    return applyRangedAndMeleeRelicSpeed(baseSpeed);
-                }
-                break;
-            case 3:
-                // Superior Sorcerer (magic)
-                if (attackStyle == AttackStyle.CASTING || attackStyle == AttackStyle.DEFENSIVE_CASTING)
-                {
-                    return 2;
-                }
-                break;
+    
+        int meleeMastery = client.getVarbitValue(Varbits.LEAGUES_MELEE_COMBAT_MASTERY_LEVEL);
+        int rangedMastery = client.getVarbitValue(Varbits.LEAGUES_RANGED_COMBAT_MASTERY_LEVEL);
+        int magicMastery = client.getVarbitValue(Varbits.LEAGUES_MAGIC_COMBAT_MASTERY_LEVEL);
+        
+        Map<AttackStyle, Integer> masteryMap = Map.of(
+                AttackStyle.RANGING, rangedMastery,
+                AttackStyle.LONGRANGE, rangedMastery,
+                AttackStyle.ACCURATE, meleeMastery,
+                AttackStyle.AGGRESSIVE, meleeMastery,
+                AttackStyle.CONTROLLED, meleeMastery,
+                AttackStyle.DEFENSIVE, meleeMastery,
+                AttackStyle.CASTING, magicMastery,
+                AttackStyle.DEFENSIVE_CASTING, magicMastery
+        );
+    
+        if (masteryMap.containsKey(attackStyle)) {
+            int masteryLevel = masteryMap.getOrDefault(attackStyle, 0);
+            return applySpeedReduction(baseSpeed, masteryLevel);
         }
-
+    
         return baseSpeed;
     }
+    
+    private int applySpeedReduction(int baseSpeed, int masteryLevel) {
+        if (masteryLevel >= 5) {
+            return applyHalfSpeedReduction(baseSpeed);
+        } else if (masteryLevel >= 3) {
+            return apply80PercentReduction(baseSpeed);
+        }
+        return baseSpeed;
+    }
+    
+    private int apply80PercentReduction(int baseSpeed)
+    {
+        return  (int) Math.floor(baseSpeed * 0.8);
+    }
 
-    private int applyRangedAndMeleeRelicSpeed(int baseSpeed)
+    private int applyHalfSpeedReduction(int baseSpeed)
     {
         if (baseSpeed >= 4) {
             return baseSpeed / 2;

@@ -71,7 +71,7 @@ public class Leagues implements IVariableSpeed
         );
     
         if (masteryMap.containsKey(attackStyle)) {
-            int masteryLevel = masteryMap.get(attackStyle);
+            int masteryLevel = masteryMap.getOrDefault(attackStyle, 0);
             return applySpeedReduction(baseSpeed, masteryLevel);
         }
     

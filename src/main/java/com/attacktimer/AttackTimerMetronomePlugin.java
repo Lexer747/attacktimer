@@ -481,7 +481,6 @@ public class AttackTimerMetronomePlugin extends Plugin
         pendingEatDelayTicks -= pendingEats;
     }
 
-    @SuppressWarnings("fallthrough")
     @Subscribe
     public void onGameTick(GameTick tick)
     {

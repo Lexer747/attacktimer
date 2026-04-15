@@ -28,18 +28,17 @@ package com.attacktimer.VariableSpeed;
 import com.attacktimer.AnimationData;
 import com.attacktimer.AttackProcedure;
 import net.runelite.api.Client;
-import net.runelite.api.events.GameTick;
 
 public class RedKerisSpec implements IVariableSpeed
 {
-    public int apply(final Client client, final AnimationData curAnimation, final AttackProcedure atkProcedure, final int baseSpeed, final int curSpeed)
+    public int apply(final Client client, final AnimationData curAnimation, final AttackProcedure atkType,
+            final int damageDealt, final int lastSpecDelta, final int baseSpeed, final int curSpeed)
     {
         if (curAnimation == AnimationData.MELEE_RED_KERIS_SPEC)
         {
             // TODO add miss/hit tracking code, if we missed this delay is not applied
-            return curSpeed+4;
+            return curSpeed + 4;
         }
         return curSpeed;
     }
-    public void onGameTick(Client client, GameTick tick) {}
 }

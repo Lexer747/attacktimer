@@ -1,7 +1,7 @@
-package com.attacktimer.VariableSpeed;
+package com.attacktimer.VariableSpeed.State;
 
 /*
- * Copyright (c) 2024, Lexer747 <https://github.com/Lexer747>
+ * Copyright (c) 2026, Lexer747 <https://github.com/Lexer747>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,30 +25,29 @@ package com.attacktimer.VariableSpeed;
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import com.attacktimer.AnimationData;
-import com.attacktimer.AttackProcedure;
-import com.attacktimer.AttackType;
-import com.attacktimer.ClientUtils.Utils;
 import net.runelite.api.Client;
+import net.runelite.api.events.ChatMessage;
+import net.runelite.api.events.GameTick;
 
-/**
- * There is no cooldown when attacking the skulls with melee.
- */
-public class TombsOfAmascut implements IVariableSpeed
+public interface IStateTracker
 {
-    // The skulls during p3 wardens.
-    // https://oldschool.runescape.wiki/w/Energy_Siphon
-    private static final int ENERGY_SIPHON_ID = 11772;
+    /**
+     * onGameTick is a subscription method, an implementation can implement this if the condition for
+     * the variable speed requires some larger state tracking and cannot be implemented in apply alone.
+     *
+     * @param client the RuneScape client.
+     * @param tick   the current tick.
+     */
+    default public void onGameTick(final Client client, final GameTick tick)
+    {};
 
-    public int apply(final Client client, final AnimationData curAnimation, final AttackProcedure atkType,
-            final int damageDealt, final int lastSpecDelta, final int baseSpeed, final int curSpeed)
-    {
-        final int targetId = Utils.getTargetId(client);
-        final AttackType attkType = Utils.getAttackType(client);
-        if (targetId == ENERGY_SIPHON_ID && attkType.IsMelee())
-        {
-            return 1;
-        }
-        return curSpeed;
-    }
+    /**
+     * onChatMessage is a subscription method, an implementation can implement this if the condition for
+     * the variable speed requires some larger state tracking and cannot be implemented in apply alone.
+     *
+     * @param client the RuneScape client.
+     * @param event  the chat message event.
+     */
+    default public void onChatMessage(final Client client, final ChatMessage event)
+    {};
 }

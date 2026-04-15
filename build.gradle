@@ -46,7 +46,6 @@ java {
 }
 
 group = 'com.attacktimer'
-version = '1.1'
 
 tasks.withType(JavaCompile) {
 	options.encoding = 'UTF-8'

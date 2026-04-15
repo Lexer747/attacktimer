@@ -29,6 +29,7 @@ import com.attacktimer.AnimationData;
 import com.attacktimer.AttackProcedure;
 import com.attacktimer.AttackType;
 import com.attacktimer.ClientUtils.Utils;
+import com.attacktimer.VariableSpeed.State.TickCount;
 import com.attacktimer.WeaponType;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -56,7 +57,15 @@ import net.runelite.api.events.GameTick;
  */
 public class TormentedDemons implements IVariableSpeed
 {
-    public int apply(final Client client, final AnimationData curAnimation, final AttackProcedure atkProcedure, final int baseSpeed, final int curSpeed)
+    private TickCount tickCount;
+
+    TormentedDemons(TickCount tc)
+    {
+        this.tickCount = tc;
+    }
+
+    public int apply(final Client client, final AnimationData curAnimation, final AttackProcedure atkType,
+            final int damageDealt, final int lastSpecDelta, final int baseSpeed, final int curSpeed)
     {
         int targetId = Utils.getTargetId(client);
         if (!isTormentedDemon(targetId))
@@ -70,18 +79,18 @@ public class TormentedDemons implements IVariableSpeed
             return curSpeed;
         }
         final DemonData targetDemon = tormentedDemons.get(target);
-        if (!targetDemon.isVulnerable(tickCount))
+        if (!targetDemon.isVulnerable(tickCount.get()))
         {
             return curSpeed;
         }
         // The demon is vulnerable! However if it's already been attacked in a previous tick then the
         // vulnerability is moot.
-        if (targetDemon.vulnConsumed(tickCount))
+        if (targetDemon.vulnConsumed(tickCount.get()))
         {
             return curSpeed;
         }
         // Finally the last checks, only certain attack styles and weapons can trigger the effect.
-        switch (atkProcedure)
+        switch (atkType)
         {
             case POWERED_STAVE:
                 // Powered staves cannot trigger the effect
@@ -123,12 +132,10 @@ public class TormentedDemons implements IVariableSpeed
         return targetId == TORMENTED_DEMON_ID || targetId == TORMENTED_DEMON_2_ID;
     }
 
-    private Map<NPC, DemonData> tormentedDemons = new HashMap<NPC,DemonData>();;
-    private int tickCount;
+    private Map<NPC, DemonData> tormentedDemons = new HashMap<NPC, DemonData>();
 
     public void onGameTick(Client client, GameTick tick)
     {
-        tickCount++;
         for (NPC npc : client.getTopLevelWorldView().npcs())
         {
             if (!isTormentedDemon(npc.getId()))
@@ -139,20 +146,20 @@ public class TormentedDemons implements IVariableSpeed
             if (tormentedDemons.containsKey(npc))
             {
                 DemonData d = tormentedDemons.get(npc);
-                d.update(tickCount, isVulnerable);
+                d.update(tickCount.get(), isVulnerable);
             }
             else
             {
-                tormentedDemons.put(npc, new DemonData(tickCount, isVulnerable));
+                tormentedDemons.put(npc, new DemonData(tickCount.get(), isVulnerable));
             }
         }
         // Only check for staleness every so often
-        if (tickCount % 100 == 0)
+        if (tickCount.get() % 100 == 0)
         {
             var toDelete = new ArrayList<NPC>();
             for (Entry<NPC, DemonData> td : tormentedDemons.entrySet())
             {
-                if (td.getValue().isStale(tickCount))
+                if (td.getValue().isStale(tickCount.get()))
                 {
                     toDelete.add(td.getKey());
                 }
@@ -177,6 +184,7 @@ public class TormentedDemons implements IVariableSpeed
         private Integer vulnerableStart;
         private Integer vulnerableFinish;
         private int attacked;
+
         DemonData(int tick, boolean vuln)
         {
             lastSpotted = tick;
@@ -228,7 +236,6 @@ public class TormentedDemons implements IVariableSpeed
             }
             return false;
         }
-
 
         // vulnConsumed returns true if the demon was already attack, false if not and the vuln is still usable
         boolean vulnConsumed(int tick)

@@ -28,7 +28,9 @@ package com.attacktimer;
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+import com.attacktimer.ClientUtils.Utils;
 import com.attacktimer.VariableSpeed.VariableSpeed;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.ByteArrayDataOutput;
@@ -36,6 +38,7 @@ import com.google.inject.Provides;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -44,19 +47,19 @@ import java.util.regex.Pattern;
 import javax.inject.Inject;
 import net.runelite.api.Actor;
 import net.runelite.api.Client;
-import net.runelite.api.EquipmentInventorySlot;
-import net.runelite.api.InventoryID;
-import net.runelite.api.Item;
-import net.runelite.api.ItemContainer;
 import net.runelite.api.NPC;
 import net.runelite.api.Player;
+import net.runelite.api.Skill;
 import net.runelite.api.Varbits;
 import net.runelite.api.events.ChatMessage;
+import net.runelite.api.events.FakeXpDrop;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.InteractingChanged;
 import net.runelite.api.events.SoundEffectPlayed;
+import net.runelite.api.events.StatChanged;
 import net.runelite.api.events.VarClientIntChanged;
 import net.runelite.api.events.VarbitChanged;
+import net.runelite.api.gameval.VarPlayerID;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
@@ -123,9 +126,18 @@ public class AttackTimerMetronomePlugin extends Plugin
     private int lastEquippingMonotonicValue = -1;
     private int soundEffectTick = -1;
     private int soundEffectId = -1;
+    private boolean isUsingMagic = false;
 
     public int pendingEatDelayTicks = 0;
 
+    private ArrayDeque<Integer> specialPercentageEvents = new ArrayDeque<Integer>();
+    private Map<Skill, ArrayDeque<Integer>> combatExpEarned = Map.of(
+        Skill.MAGIC, new ArrayDeque<Integer>(),
+        Skill.RANGED, new ArrayDeque<Integer>(),
+        Skill.DEFENCE, new ArrayDeque<Integer>(),
+        Skill.STRENGTH, new ArrayDeque<Integer>(),
+        Skill.ATTACK, new ArrayDeque<Integer>()
+    );
 
     private static final int UI_HIDE_DEBOUNCE_TICKS_MAX = 1;
     private static final int ATTACK_DELAY_NONE = 0;
@@ -188,6 +200,10 @@ public class AttackTimerMetronomePlugin extends Plugin
         {
             currentSpellBook = Spellbook.fromVarbit(varbitChanged.getValue());
         }
+        if (varbitChanged.getVarpId() == VarPlayerID.SA_ENERGY)
+        {
+            specialPercentageEvents.addLast(varbitChanged.getValue());
+        }
     }
 
     // onVarbitChanged happens when the user causes some interaction therefore we can't rely on some fixed
@@ -227,6 +243,36 @@ public class AttackTimerMetronomePlugin extends Plugin
         soundEffectId = event.getSoundId();
     }
 
+    @Subscribe
+    protected void onFakeXpDrop(FakeXpDrop event)
+    {
+        if (!combatExpEarned.containsKey(event.getSkill()))
+        {
+            return;
+        }
+        combatExpEarned.get(event.getSkill()).addLast(event.getXp());
+        if (attackState == AttackState.DELAYED_FIRST_TICK)
+        {
+            // We recompute attack speed here incase the hitsplat mattered (e.g. purging staff)
+            performAttack();
+        }
+    }
+
+    @Subscribe
+    protected void onStatChanged(StatChanged event)
+    {
+        if (!combatExpEarned.containsKey(event.getSkill()))
+        {
+            return;
+        }
+        combatExpEarned.get(event.getSkill()).addLast(event.getXp());
+        if (attackState == AttackState.DELAYED_FIRST_TICK)
+        {
+            // We recompute attack speed here incase the hitsplat mattered (e.g. purging staff)
+            performAttack();
+        }
+    }
+
     // endregion
 
     @Provides
@@ -235,23 +281,41 @@ public class AttackTimerMetronomePlugin extends Plugin
         return configManager.getConfig(AttackTimerMetronomeConfig.class);
     }
 
-    private int getItemIdFromContainer(ItemContainer container, int slotID)
+    private int computeDamage(AttackStyle attackStyle, AttackProcedure atkType, AnimationData curAnimation)
     {
-        if (container == null)
+        switch (atkType)
         {
-            return -1;
+            case POWERED_STAVE:
+                // TODO not needed for any variable speed
+                return -1;
+            case MANUAL_AUTO_CAST:
+                if (attackStyle == AttackStyle.DEFENSIVE_CASTING || attackStyle == AttackStyle.DEFENSIVE)
+                {
+                    // just use the defense exp to compute the damage
+                    return Utils.getLastDelta(combatExpEarned.get(Skill.DEFENCE));
+                }
+                else
+                {
+                    // deduct the fixed exp based on the spell
+                    // (for now this only works for dark demon bane which awkwardly gives fractional exp)
+                    var mageExp = Utils.getLastDelta(combatExpEarned.get(Skill.MAGIC));
+                    if (curAnimation != AnimationData.MAGIC_ARCEUUS_DEMONBANE)
+                    {
+                        return -1;
+                    }
+                    return (int) Math.ceil(((double) mageExp - 43.5D) / 2.0D);
+                }
+            case MELEE_OR_RANGE:
+                // TODO not needed for any variable speed
+                return -1;
         }
-        final Item item = container.getItem(slotID);
-        return (item != null) ? item.getId() : -1;
+        return -1;
     }
+
 
     private int getWeaponId()
     {
-        int weaponId = getItemIdFromContainer(
-                client.getItemContainer(InventoryID.EQUIPMENT),
-                EquipmentInventorySlot.WEAPON.getSlotIdx()
-        );
-
+        final int weaponId = Utils.getWeaponId(client);
         return WEAPON_ID_MAPPING_WORKAROUNDS.getOrDefault(weaponId, weaponId);
     }
 
@@ -302,27 +366,35 @@ public class AttackTimerMetronomePlugin extends Plugin
 
     private int getWeaponSpeed(int weaponId, PoweredStaves stave, AnimationData curAnimation, boolean matchesSpellbook)
     {
+        var specDelta = Utils.getLastDelta(specialPercentageEvents);
+        int damageDealt = -1;
         if (stave != null && stave.getAnimations().contains(curAnimation))
         {
+            isUsingMagic = true;
+            damageDealt = computeDamage(Utils.getAttackStyle(client), AttackProcedure.POWERED_STAVE, curAnimation);
             // We are currently dealing with a staves in which case we can make decisions based on the
             // spellbook flag. We can only improve this by using a deprecated API to check the projectile
             // matches the stave rather than a manual spell, but this is good enough for now.
-            return VariableSpeed.computeSpeed(client, curAnimation, AttackProcedure.POWERED_STAVE, 4);
+            return VariableSpeed.computeSpeed(client, curAnimation, AttackProcedure.POWERED_STAVE, damageDealt, specDelta, 4);
         }
 
         if (matchesSpellbook && isManualCasting(curAnimation))
         {
+            isUsingMagic = true;
+            damageDealt = computeDamage(Utils.getAttackStyle(client), AttackProcedure.MANUAL_AUTO_CAST, curAnimation);
             // You can cast with anything equipped in which case we shouldn't look to invent for speed.
-            return VariableSpeed.computeSpeed(client, curAnimation, AttackProcedure.MANUAL_AUTO_CAST, getMagicBaseSpeed(weaponId));
+            return VariableSpeed.computeSpeed(client, curAnimation, AttackProcedure.MANUAL_AUTO_CAST, damageDealt, specDelta,getMagicBaseSpeed(weaponId));
         }
 
+        isUsingMagic = false;
+        damageDealt = computeDamage(Utils.getAttackStyle(client), AttackProcedure.MELEE_OR_RANGE, curAnimation);
         ItemStats weaponStats = getWeaponStats(weaponId);
         if (weaponStats == null)
         {
-            return VariableSpeed.computeSpeed(client, curAnimation, AttackProcedure.MELEE_OR_RANGE, 4); // Assume barehanded == 4t
+            return VariableSpeed.computeSpeed(client, curAnimation, AttackProcedure.MELEE_OR_RANGE, damageDealt, specDelta, 4); // Assume barehanded == 4t
         }
         // Deadline for next available attack.
-        return VariableSpeed.computeSpeed(client, curAnimation, AttackProcedure.MELEE_OR_RANGE, weaponStats.getEquipment().getAspeed());
+        return VariableSpeed.computeSpeed(client, curAnimation, AttackProcedure.MELEE_OR_RANGE, damageDealt, specDelta, weaponStats.getEquipment().getAspeed());
     }
 
     private static final List<Integer> SPECIAL_NPCS = Arrays.asList(10507, 9435, 9438, 9441, 9444); // Combat Dummy + Nightmare Pillars
@@ -438,6 +510,7 @@ public class AttackTimerMetronomePlugin extends Plugin
             // We should always add eat delay
             pendingEatDelayTicks += attackDelay;
         }
+        VariableSpeed.onChatMessage(client, event);
     }
 
     // onInteractingChanged is the driver for detecting if the player attacked out side the usual tick window
@@ -456,6 +529,7 @@ public class AttackTimerMetronomePlugin extends Plugin
             switch (attackState)
             {
                 case NOT_ATTACKING:
+                    isUsingMagic = false;
                     // If not previously attacking, this action can result in a queued attack or
                     // an instant attack. If its queued, don't trigger the cooldown yet.
                     if (isPlayerAttacking())
@@ -523,6 +597,17 @@ public class AttackTimerMetronomePlugin extends Plugin
         // clamp the attackDelayHoldoffTicks at -20, this is so we correctly account for eats even when not
         // attacking, but don't count down forever.
         attackDelayHoldoffTicks = Math.max(-20, attackDelayHoldoffTicks - 1);
+        if (specialPercentageEvents.size() > 5)
+        {
+            specialPercentageEvents.removeFirst();
+        }
+        for (var q : combatExpEarned.values())
+        {
+            if (q.size() > 5)
+            {
+                q.removeFirst();
+            }
+        }
     }
 
 
@@ -551,6 +636,7 @@ public class AttackTimerMetronomePlugin extends Plugin
         attackDelayHoldoffTicks = 0;
     }
 
+    @VisibleForTesting
     public void writeState(ByteArrayDataOutput outChannel)
     {
         StringBuilder sb = new StringBuilder();
@@ -570,4 +656,21 @@ public class AttackTimerMetronomePlugin extends Plugin
         outChannel.write(bytes);
     }
     private static final String SEPARATOR = ", ";
+
+
+    public void onRender()
+    {
+        int delta = 0;
+        delta = VariableSpeed.SHADOW_CRASH.onRender(client, attackDelayHoldoffTicks, isUsingMagic);
+
+        if (delta != 0)
+        {
+            attackDelayHoldoffTicks += delta;
+            // if a change in attack delay would cause the delay to be less than 0 we hide the display
+            if (attackDelayHoldoffTicks < 0)
+            {
+                attackState = AttackState.NOT_ATTACKING;
+            }
+        }
+    }
 }

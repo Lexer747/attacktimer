@@ -27,7 +27,7 @@ package com.attacktimer;
 
 import com.google.common.collect.ImmutableMap;
 
-enum Spellbook
+public enum Spellbook
 {
     STANDARD(0),
     ANCIENT(1),

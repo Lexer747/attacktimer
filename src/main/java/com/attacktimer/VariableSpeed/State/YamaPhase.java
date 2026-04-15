@@ -1,7 +1,7 @@
-package com.attacktimer.VariableSpeed;
+package com.attacktimer.VariableSpeed.State;
 
 /*
- * Copyright (c) 2024, Lexer747 <https://github.com/Lexer747>
+ * Copyright (c) 2026, Lexer747 <https://github.com/Lexer747>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,30 +25,21 @@ package com.attacktimer.VariableSpeed;
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import com.attacktimer.AnimationData;
-import com.attacktimer.AttackProcedure;
-import com.attacktimer.AttackType;
-import com.attacktimer.ClientUtils.Utils;
-import net.runelite.api.Client;
-
-/**
- * There is no cooldown when attacking the skulls with melee.
- */
-public class TombsOfAmascut implements IVariableSpeed
+public enum YamaPhase
 {
-    // The skulls during p3 wardens.
-    // https://oldschool.runescape.wiki/w/Energy_Siphon
-    private static final int ENERGY_SIPHON_ID = 11772;
+    P1, P2, P3;
 
-    public int apply(final Client client, final AnimationData curAnimation, final AttackProcedure atkType,
-            final int damageDealt, final int lastSpecDelta, final int baseSpeed, final int curSpeed)
+    public YamaPhase nextPhase()
     {
-        final int targetId = Utils.getTargetId(client);
-        final AttackType attkType = Utils.getAttackType(client);
-        if (targetId == ENERGY_SIPHON_ID && attkType.IsMelee())
+        switch (this)
         {
-            return 1;
+        case P1:
+            return P2;
+        case P2:
+            return P3;
+        case P3:
+            return P3;
         }
-        return curSpeed;
+        return P1;
     }
 }

@@ -68,6 +68,7 @@ public class AttackTimerMetronomeTileOverlay extends Overlay
     @Override
     public Dimension render(Graphics2D graphics)
     {
+        plugin.onRender();
         player = client.getLocalPlayer();
         plugin.renderedState = plugin.attackState;
         if (plugin.attackState == AttackTimerMetronomePlugin.AttackState.NOT_ATTACKING)

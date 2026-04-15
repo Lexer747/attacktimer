@@ -27,7 +27,12 @@ package com.attacktimer.VariableSpeed;
 
 import com.attacktimer.AnimationData;
 import com.attacktimer.AttackProcedure;
+import com.attacktimer.VariableSpeed.State.IStateTracker;
+import com.attacktimer.VariableSpeed.State.MarkOfDarkness;
+import com.attacktimer.VariableSpeed.State.TickCount;
+import com.attacktimer.VariableSpeed.State.Yama;
 import net.runelite.api.Client;
+import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameTick;
 
 public class VariableSpeed
@@ -35,45 +40,73 @@ public class VariableSpeed
     /**
      * computeSpeed will forward the client, animation data and current weapon speed to all the known classes
      * which can affect the base speed of a weapon. See implementations of IVariableSpeed.
-     * @param client
-     * @param curAnimation
-     * @param atkType
-     * @param baseSpeed
-     * @return
      */
-    public static int computeSpeed(final Client client, final AnimationData curAnimation, final AttackProcedure atkProcedure, final int baseSpeed)
+    public static int computeSpeed(final Client client, final AnimationData curAnimation, final AttackProcedure atkType,
+            final int damageDealt, final int lastSpecDelta, final int baseSpeed)
     {
         int newSpeed = baseSpeed;
         for (IVariableSpeed i : TO_APPLY)
         {
-            newSpeed = i.apply(client, curAnimation, atkProcedure, baseSpeed, newSpeed);
+            newSpeed = i.apply(client, curAnimation, atkType, damageDealt, lastSpecDelta, baseSpeed, newSpeed);
         }
         return newSpeed;
     }
 
-    public static void onGameTick(Client client, GameTick tick)
+    public static void onGameTick(final Client client, final GameTick tick)
     {
-        for (IVariableSpeed i : TO_APPLY)
+        for (IStateTracker i : TO_TRACK)
+        {
+            i.onGameTick(client, tick);
+        }
+        for (IStateTracker i : TO_APPLY)
         {
             i.onGameTick(client, tick);
         }
     }
 
+    public static void onChatMessage(final Client client, final ChatMessage event)
+    {
+        for (IStateTracker i : TO_TRACK)
+        {
+            i.onChatMessage(client, event);
+        }
+        for (IStateTracker i : TO_APPLY)
+        {
+            i.onChatMessage(client, event);
+        }
+    }
+
+    private static final Yama YAMA = new Yama();
+    private static final MarkOfDarkness MARK_OF_DARKNESS = new MarkOfDarkness();
+    private static final TickCount TC = new TickCount();
+
+    private static final IStateTracker[] TO_TRACK = {
+        // State tracking, these do not contribute themselves to any variable speed weapon/mechanic but
+        // provide state tracking which is shared across more than one variable speed weapon/mechanic.
+        TC,
+        YAMA,
+        MARK_OF_DARKNESS,
+    };
     private static final IVariableSpeed[] TO_APPLY = {
-        // Order matters, apply leagues first, then any incremental modifications like rapid, or set effects.
+        // Order matters, apply leagues first, then any incremental modifications like rapid, or set
+        // effects.
         // Then overriding speeds last, which set a speed.
-        // new Leagues4and5(),
 
         // Incremental:
         new BloodMoonSet(),
         new RapidAttackStyle(),
         new RedKerisSpec(),
+        new PurgingStaffSpec(YAMA),
         new EyeOfAyak(),
-        new TormentedDemons(),
+        new TormentedDemons(TC),
 
         // Overriding modifiers:
         new Scurrius(),
         new TombsOfAmascut(),
     };
+
+    // Variable speed that doesn't neatly fit in to the IVariable speed pattern (it's not weapon related
+    // but boss related).
+    public static final ShadowCrash SHADOW_CRASH = new ShadowCrash(YAMA, MARK_OF_DARKNESS, TC);
 
 }

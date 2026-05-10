@@ -45,7 +45,11 @@ java {
 	targetCompatibility = "1.11"
 }
 
+def props = new Properties()
+file('runelite-plugin.properties').withInputStream { props.load(it) }
+
 group = 'com.attacktimer'
+version = props.getProperty('version')
 
 tasks.withType(JavaCompile) {
 	options.encoding = 'UTF-8'

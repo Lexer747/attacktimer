@@ -50,7 +50,6 @@ import net.runelite.api.Client;
 import net.runelite.api.NPC;
 import net.runelite.api.Player;
 import net.runelite.api.Skill;
-import net.runelite.api.Varbits;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.FakeXpDrop;
 import net.runelite.api.events.GameTick;
@@ -60,6 +59,7 @@ import net.runelite.api.events.StatChanged;
 import net.runelite.api.events.VarClientIntChanged;
 import net.runelite.api.events.VarbitChanged;
 import net.runelite.api.gameval.VarPlayerID;
+import net.runelite.api.gameval.VarbitID;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
@@ -196,7 +196,7 @@ public class AttackTimerMetronomePlugin extends Plugin
     @Subscribe
     public void onVarbitChanged(VarbitChanged varbitChanged)
     {
-        if (varbitChanged.getVarbitId() == Varbits.SPELLBOOK)
+        if (varbitChanged.getVarbitId() == VarbitID.SPELLBOOK)
         {
             currentSpellBook = Spellbook.fromVarbit(varbitChanged.getValue());
         }

@@ -40,8 +40,8 @@ import lombok.NonNull;
 import net.runelite.api.Client;
 import net.runelite.api.Perspective;
 import net.runelite.api.Point;
-import net.runelite.api.SpriteID;
 import net.runelite.api.coords.LocalPoint;
+import net.runelite.api.gameval.SpriteID;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
@@ -72,7 +72,7 @@ class AttackTimerBarOverlay extends Overlay
         this.plugin = plugin;
 
         setPosition(OverlayPosition.DYNAMIC);
-        setPriority(OverlayPriority.HIGH);
+        setPriority(Overlay.PRIORITY_HIGH);
         setLayer(OverlayLayer.UNDER_WIDGETS);
     }
 
@@ -113,7 +113,7 @@ class AttackTimerBarOverlay extends Overlay
 
         AttackBarStyle barStyle = config.barStyle();
         boolean useHD = barStyle == AttackBarStyle.HIGH_DETAIL || (barStyle == AttackBarStyle.AUTO
-                && client.getSpriteOverrides().containsKey(SpriteID.HEALTHBAR_DEFAULT_FRONT_30PX));
+                && client.getSpriteOverrides().containsKey(SpriteID.StandardHealth30._0));
 
         if (useHD)
         {

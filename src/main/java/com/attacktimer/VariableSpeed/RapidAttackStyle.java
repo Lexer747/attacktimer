@@ -31,7 +31,7 @@ import com.attacktimer.AttackProcedure;
 import com.attacktimer.AttackStyle;
 import com.attacktimer.ClientUtils.Utils;
 import net.runelite.api.Client;
-import net.runelite.api.VarPlayer;
+import net.runelite.api.gameval.VarPlayerID;
 
 public class RapidAttackStyle implements IVariableSpeed
 {
@@ -39,7 +39,7 @@ public class RapidAttackStyle implements IVariableSpeed
             final int damageDealt, final int lastSpecDelta, final int baseSpeed, final int curSpeed)
     {
         // index 1 == rapid
-        final boolean isRapid = client.getVarpValue(VarPlayer.ATTACK_STYLE) == 1;
+        final boolean isRapid = client.getVarpValue(VarPlayerID.COM_MODE) == 1;
         if (atkType == AttackProcedure.MELEE_OR_RANGE && Utils.getAttackStyle(client) == AttackStyle.RANGING && isRapid)
         {
             // Also works for salamanders which attack 1 tick faster when using the ranged style

@@ -54,6 +54,7 @@ version = props.getProperty('version')
 tasks.withType(JavaCompile) {
 	options.encoding = 'UTF-8'
 	options.release.set(11)
+	options.compilerArgs += ['-Xlint:deprecation']
 }
 
 // Code based on

@@ -62,7 +62,7 @@ public class AttackTimerMetronomeTileOverlay extends Overlay
         this.plugin = plugin;
         setPosition(OverlayPosition.DYNAMIC);
         setLayer(OverlayLayer.UNDER_WIDGETS);
-        setPriority(OverlayPriority.MED);
+        setPriority(Overlay.PRIORITY_MED);
     }
 
     @Override

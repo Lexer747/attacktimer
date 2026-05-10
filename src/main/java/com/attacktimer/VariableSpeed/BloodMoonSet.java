@@ -28,18 +28,18 @@ package com.attacktimer.VariableSpeed;
 import com.attacktimer.AnimationData;
 import com.attacktimer.AttackProcedure;
 import net.runelite.api.Client;
-import net.runelite.api.events.GameTick;
 
 public class BloodMoonSet implements IVariableSpeed
 {
     private static final int BLOOD_MOON_SET_ANIM_ID = 2792;
-    public int apply(final Client client, final AnimationData curAnimation, final AttackProcedure atkProcedure, final int baseSpeed, final int curSpeed)
+
+    public int apply(final Client client, final AnimationData curAnimation, final AttackProcedure atkType,
+            final int damageDealt, final int lastSpecDelta, final int baseSpeed, final int curSpeed)
     {
         if (client.getLocalPlayer().hasSpotAnim(BLOOD_MOON_SET_ANIM_ID))
         {
-            return curSpeed-1;
+            return curSpeed - 1;
         }
         return curSpeed;
     }
-    public void onGameTick(Client client, GameTick tick) {}
 }

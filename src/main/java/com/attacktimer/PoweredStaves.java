@@ -40,7 +40,7 @@ import org.apache.commons.lang3.StringUtils;
 // weapons, they cannot be used to auto-cast spells. In addition, they have an attack speed of 4, faster than
 // other magic weapons, which have an attack speed of 5. The Tumeken's shadow, however, has an attack speed of
 // 5. This Enum is only to contain the staves which allow magic at 4 ticks.
-enum PoweredStaves
+public enum PoweredStaves
 {
     WEAPON_ACCURSED( Set.of(AnimationData.MAGIC_STANDARD_WAVE_STAFF, AnimationData.MAGIC_ACCURSED_SCEPTRE_SPEC), Projectiles(2337, 2339), 27665, 27666), // https://oldschool.runescape.wiki/w/Accursed_sceptre
     WEAPON_BLUE_C_STAFF_A(AnimationData.MAGIC_STANDARD_WAVE_STAFF, Projectiles(1720), 23899), // https://oldschool.runescape.wiki/w/Crystal_staff_(attuned)

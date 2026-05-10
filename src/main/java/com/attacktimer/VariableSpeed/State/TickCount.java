@@ -1,7 +1,7 @@
-package com.attacktimer.VariableSpeed;
+package com.attacktimer.VariableSpeed.State;
 
 /*
- * Copyright (c) 2024, Lexer747 <https://github.com/Lexer747>
+ * Copyright (c) 2026, Lexer747 <https://github.com/Lexer747>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,30 +25,36 @@ package com.attacktimer.VariableSpeed;
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import com.attacktimer.AnimationData;
-import com.attacktimer.AttackProcedure;
-import com.attacktimer.AttackType;
-import com.attacktimer.ClientUtils.Utils;
 import net.runelite.api.Client;
+import net.runelite.api.events.GameTick;
 
 /**
- * There is no cooldown when attacking the skulls with melee.
+ * TickCount increments on each game tick. Due to 6 hour logs this cannot overflow or wrap around.
  */
-public class TombsOfAmascut implements IVariableSpeed
+public class TickCount implements IStateTracker
 {
-    // The skulls during p3 wardens.
-    // https://oldschool.runescape.wiki/w/Energy_Siphon
-    private static final int ENERGY_SIPHON_ID = 11772;
+    private int tickCount;
 
-    public int apply(final Client client, final AnimationData curAnimation, final AttackProcedure atkType,
-            final int damageDealt, final int lastSpecDelta, final int baseSpeed, final int curSpeed)
+    public int get()
     {
-        final int targetId = Utils.getTargetId(client);
-        final AttackType attkType = Utils.getAttackType(client);
-        if (targetId == ENERGY_SIPHON_ID && attkType.IsMelee())
-        {
-            return 1;
-        }
-        return curSpeed;
+        return tickCount;
+    }
+
+    public void onGameTick(Client client, GameTick tick)
+    {
+        tickCount++;
+    }
+
+    /**
+     * isWithinNTicks returns true if the current game tick count is within N ticks of the argument
+     * `toCheckAgainst`
+     *
+     * @param toCheckAgainst some fixed point that occurred in the past (in game ticks)
+     * @param N              the number of ticks of generosity
+     * @return true if the current counter is N or less ticks away from `toCheckAgainst`
+     */
+    public boolean isWithinNTicks(int toCheckAgainst, int N)
+    {
+        return this.tickCount <= toCheckAgainst + N && this.tickCount >= toCheckAgainst;
     }
 }

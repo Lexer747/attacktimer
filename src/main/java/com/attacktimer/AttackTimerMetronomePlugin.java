@@ -56,7 +56,6 @@ import net.runelite.api.events.GameTick;
 import net.runelite.api.events.InteractingChanged;
 import net.runelite.api.events.SoundEffectPlayed;
 import net.runelite.api.events.StatChanged;
-import net.runelite.api.events.VarClientIntChanged;
 import net.runelite.api.events.VarbitChanged;
 import net.runelite.api.gameval.VarPlayerID;
 import net.runelite.api.gameval.VarbitID;
@@ -123,7 +122,7 @@ public class AttackTimerMetronomePlugin extends Plugin
     public Color CurrentColor = Color.WHITE;
 
     private Spellbook currentSpellBook = Spellbook.STANDARD;
-    private int lastEquippingMonotonicValue = -1;
+    private int lastUsedWeaponId = -1;
     private int soundEffectTick = -1;
     private int soundEffectId = -1;
     private boolean isUsingMagic = false;
@@ -203,31 +202,6 @@ public class AttackTimerMetronomePlugin extends Plugin
         if (varbitChanged.getVarpId() == VarPlayerID.SA_ENERGY)
         {
             specialPercentageEvents.addLast(varbitChanged.getValue());
-        }
-    }
-
-    // onVarbitChanged happens when the user causes some interaction therefore we can't rely on some fixed
-    // timing relative to a tick. A player can swap many items in the duration of the a tick.
-    @Subscribe
-    public void onVarClientIntChanged(VarClientIntChanged varClientIntChanged)
-    {
-        if (!config.enableMetronome()) return;
-        final int currentMagicVarBit = client.getVarcIntValue(EQUIPPING_MONOTONIC);
-        if (currentMagicVarBit <= lastEquippingMonotonicValue)
-        {
-            return;
-        }
-        lastEquippingMonotonicValue = currentMagicVarBit;
-
-        // This windowing safe guards of from late swaps inside a tick, if we have already rendered the tick
-        // then we shouldn't perform another attack.
-        boolean preAttackWindow = attackState == AttackState.DELAYED_FIRST_TICK && renderedState != attackState;
-        if (preAttackWindow)
-        {
-            // "Perform an attack" this is overwrites the last attack since we now know the user swapped
-            // "Something" this tick, the equipped weapon detection will pick up specific weapon swaps. Even
-            // swapping more than 1 weapon inside a single tick.
-            performAttack();
         }
     }
 
@@ -341,6 +315,7 @@ public class AttackTimerMetronomePlugin extends Plugin
         PoweredStaves stave = PoweredStaves.getPoweredStaves(weaponId, curAnimation);
         boolean matchesSpellbook = matchesSpellbook(curAnimation);
         attackDelayHoldoffTicks = getWeaponSpeed(weaponId, stave, curAnimation, matchesSpellbook);
+        lastUsedWeaponId = weaponId;
     }
 
     // matchesSpellbook tries two methods, matching the animation the spell book based on the enum of
@@ -570,7 +545,7 @@ public class AttackTimerMetronomePlugin extends Plugin
                 }
                 else
                 {
-                    uiHideDebounceTickCount--;
+                   uiHideDebounceTickCount = Math.max(-20, uiHideDebounceTickCount - 1);
                 }
                 break;
             case DELAYED_FIRST_TICK:
@@ -648,7 +623,6 @@ public class AttackTimerMetronomePlugin extends Plugin
         sb.append("renderedState: "); sb.append(this.renderedState);sb.append(SEPARATOR);
         sb.append("pendingEatDelayTicks: "); sb.append(this.pendingEatDelayTicks);sb.append(SEPARATOR);
         sb.append("currentSpellBook: "); sb.append(this.currentSpellBook);sb.append(SEPARATOR);
-        sb.append("lastEquippingMonotonicValue: "); sb.append(this.lastEquippingMonotonicValue);sb.append(SEPARATOR);
         sb.append("soundEffectTick: "); sb.append(this.soundEffectTick);sb.append(SEPARATOR);
         sb.append("soundEffectId: "); sb.append(this.soundEffectId);sb.append("\n");
         // @formatter:on
@@ -672,5 +646,23 @@ public class AttackTimerMetronomePlugin extends Plugin
                 attackState = AttackState.NOT_ATTACKING;
             }
         }
+        checkForLateWeaponSwaps();
     }
+
+    public void checkForLateWeaponSwaps()
+    {
+        final boolean weaponMisMatch = Utils.getWeaponId(client) != lastUsedWeaponId;
+
+        // This windowing safe guards of from late swaps inside a tick, if we have already rendered the tick
+        // then we shouldn't perform another attack.
+        final boolean preAttackWindow = attackState == AttackState.DELAYED_FIRST_TICK && renderedState != attackState;
+        if (preAttackWindow && weaponMisMatch)
+        {
+            // "Perform an attack" this is overwrites the last attack since we now know the user swapped
+            // "Something" this tick, the equipped weapon detection will pick up specific weapon swaps. Even
+            // swapping more than 1 weapon inside a single tick.
+            performAttack();
+        }
+    }
+
 }

@@ -173,7 +173,6 @@ public class IntegrationTests
             try (var file = Files.newByteChannel(path, EnumSet.of(StandardOpenOption.CREATE, StandardOpenOption.WRITE)))
             {
                 file.write(ByteBuffer.wrap(actualBytes));
-                file.close();
             }
             fail("Updated file: " + path);
             return;

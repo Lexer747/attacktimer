@@ -227,8 +227,7 @@ public class AttackTimerMetronomePlugin extends Plugin
             return;
         }
         combatExpEarned.get(event.getSkill()).addLast(event.getXp());
-        final boolean preAttackWindow = attackState == AttackState.DELAYED_FIRST_TICK && renderedState != attackState;
-        if (preAttackWindow)
+        if (inPreAttackWindow())
         {
             // We recompute attack speed here incase the hitsplat mattered (e.g. purging staff)
             logStateTrace("onFakeXpDrop");
@@ -244,8 +243,7 @@ public class AttackTimerMetronomePlugin extends Plugin
             return;
         }
         combatExpEarned.get(event.getSkill()).addLast(event.getXp());
-        final boolean preAttackWindow = attackState == AttackState.DELAYED_FIRST_TICK && renderedState != attackState;
-        if (preAttackWindow)
+        if (inPreAttackWindow())
         {
             // We recompute attack speed here incase the hitsplat mattered (e.g. purging staff)
             logStateTrace("onStatChanged");
@@ -681,8 +679,7 @@ public class AttackTimerMetronomePlugin extends Plugin
 
         // This windowing safe guards of from late swaps inside a tick, if we have already rendered the tick
         // then we shouldn't perform another attack.
-        final boolean preAttackWindow = attackState == AttackState.DELAYED_FIRST_TICK && renderedState != attackState;
-        if (preAttackWindow && weaponMisMatch)
+        if (inPreAttackWindow() && weaponMisMatch)
         {
             logStateTrace("checkForLateWeaponSwaps");
             // "Perform an attack" this is overwrites the last attack since we now know the user swapped
@@ -690,6 +687,19 @@ public class AttackTimerMetronomePlugin extends Plugin
             // swapping more than 1 weapon inside a single tick.
             performAttack();
         }
+    }
+
+    /**
+     * inPreAttackWindow returns true if and only if the plugin has computed an attack speed and
+     * determined we are attacking an NPC, but the timer has not been rendered yet. Hence there is time
+     * still to adjust the speed if new data would change the result.
+     *
+     * @return true if an attack is detected and the plugin has not yet rendered the timer for the
+     *         current attack, false in every other case.
+     */
+    private boolean inPreAttackWindow()
+    {
+        return attackState == AttackState.DELAYED_FIRST_TICK && renderedState != attackState;
     }
 
 }
